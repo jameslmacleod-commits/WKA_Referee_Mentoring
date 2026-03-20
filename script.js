@@ -105,13 +105,11 @@ function loadSavedData() {
 
     const data = JSON.parse(saved);
 
-    // Load basic fields
     Object.keys(data).forEach(key => {
         if (key === "categories") return;
         if (el(key)) el(key).value = data[key];
     });
 
-    // Load category fields
     categories.forEach(cat => {
         if (data.categories && data.categories[cat]) {
             el(`${cat}-1st`).checked = data.categories[cat].firstHalf;
@@ -139,85 +137,166 @@ function exportData() {
 }
 
 // =========================================
-// EXPORT PDF
+// PROFESSIONAL PDF EXPORT (OPTION A)
 // =========================================
 async function exportPDF() {
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF({ unit: "pt", format: "a4" });
 
-    let y = 40;
+    // Page settings
+    const margin = 40;
+    let y = margin;
 
-    pdf.setFontSize(18);
-    pdf.text("WKA Referee Mentoring Feedback", 40, y);
+    // Horizontal line helper
+    function line() {
+        pdf.setDrawColor(150);
+        pdf.line(margin, y, 555, y);
+        y += 15;
+    }
+
+    // Two-column fields
+    function twoCol(label1, value1, label2, value2) {
+        pdf.setFont("Helvetica", "bold");
+        pdf.text(label1, margin, y);
+        pdf.setFont("Helvetica", "normal");
+        pdf.text(value1 || "", margin + 120, y);
+
+        pdf.setFont("Helvetica", "bold");
+        pdf.text(label2, margin + 300, y);
+        pdf.setFont("Helvetica", "normal");
+        pdf.text(value2 || "", margin + 420, y);
+
+        y += 22;
+    }
+
+    // Single field
+    function field(label, value) {
+        pdf.setFont("Helvetica", "bold");
+        pdf.text(label, margin, y);
+        pdf.setFont("Helvetica", "normal");
+        pdf.text(value || "", margin + 150, y);
+        y += 22;
+    }
+
+    // Paragraph block
+    function paragraph(label, text) {
+        pdf.setFont("Helvetica", "bold");
+        pdf.text(label, margin, y);
+        y += 18;
+
+        pdf.setFont("Helvetica", "normal");
+        const lines = pdf.splitTextToSize(text || "", 500);
+        pdf.text(lines, margin, y);
+        y += lines.length * 14 + 12;
+    }
+
+    // Add new page if needed
+    function ensureSpace(amount = 60) {
+        if (y + amount > 780) {
+            pdf.addPage();
+            y = margin;
+        }
+    }
+
+    const data = collectFormData();
+
+    // Header
+    pdf.setFont("Helvetica", "bold");
+    pdf.setFontSize(20);
+    pdf.text("WKA Referee Mentoring Feedback", margin, y);
     y += 30;
 
     pdf.setFontSize(12);
-    const data = collectFormData();
 
-    // Helper to add simple text fields
-    function addField(label, value) {
-        pdf.text(`${label}: ${value || ""}`, 40, y);
-        y += 20;
-    }
+    // Referee info
+    pdf.setFont("Helvetica", "bold");
+    pdf.text("Referee Information", margin, y);
+    y += 18;
+    line();
 
-    // Basic info
-    addField("Name", data.name);
-    addField("Club", data.club);
-    addField("Phone", data.phone);
-    addField("Current Grade", data.grade);
-    addField("Matches", data.matches);
-    addField("League + Date", data.leagueDate);
-    addField("Mentor Name", data.mentorName);
-    addField("Mentor Grade", data.mentorGrade);
+    twoCol("Name:", data.name, "Club:", data.club);
+    twoCol("Phone:", data.phone, "Current Grade:", data.grade);
+    twoCol("Matches:", data.matches, "League + Date:", data.leagueDate);
+    twoCol("Mentor Name:", data.mentorName, "Mentor Grade:", data.mentorGrade);
 
-    // Categories
+    ensureSpace();
+
+    // Evaluation categories
+    pdf.setFont("Helvetica", "bold");
+    pdf.text("Evaluation Categories", margin, y);
+    y += 18;
+    line();
+
+    pdf.setFont("Helvetica", "bold");
+    pdf.text("Category", margin, y);
+    pdf.text("1st", margin + 200, y);
+    pdf.text("2nd", margin + 260, y);
+    pdf.text("Notes", margin + 330, y);
+    y += 15;
+
+    pdf.setDrawColor(200);
+    pdf.line(margin, y, 555, y);
     y += 10;
-    pdf.setFontSize(14);
-    pdf.text("Evaluation Categories", 40, y);
-    y += 20;
 
-    pdf.setFontSize(12);
+    categories.forEach(cat => {
+        ensureSpace();
 
-    for (const cat of categories) {
-        pdf.setFont(undefined, "bold");
-        pdf.text(cat, 40, y);
-        y += 15;
+        const c = data.categories[cat];
 
-        pdf.setFont(undefined, "normal");
-        pdf.text(`1st Half: ${data.categories[cat].firstHalf ? "✓" : "✗"}`, 60, y);
-        y += 15;
-        pdf.text(`2nd Half: ${data.categories[cat].secondHalf ? "✓" : "✗"}`, 60, y);
-        y += 20;
+        pdf.setFont("Helvetica", "bold");
+        pdf.text(cat, margin, y);
 
-        let lines1 = pdf.splitTextToSize(`1st Half Notes: ${data.categories[cat].notes1 || ""}`, 500);
-        pdf.text(lines1, 60, y);
-        y += lines1.length * 15 + 10;
+        pdf.setFont("Helvetica", "normal");
+        pdf.text(c.firstHalf ? "✓" : "✗", margin + 200, y);
+        pdf.text(c.secondHalf ? "✓" : "✗", margin + 260, y);
 
-        let lines2 = pdf.splitTextToSize(`2nd Half Notes: ${data.categories[cat].notes2 || ""}`, 500);
-        pdf.text(lines2, 60, y);
-        y += lines2.length * 15 + 20;
-    }
+        pdf.setFont("Helvetica", "italic");
+        pdf.text("(notes below)", margin + 330, y);
+        y += 16;
+
+        pdf.setFont("Helvetica", "bold");
+        pdf.text("1st Half Notes:", margin + 20, y);
+        y += 14;
+        pdf.setFont("Helvetica", "normal");
+        let lines1 = pdf.splitTextToSize(c.notes1 || "", 480);
+        pdf.text(lines1, margin + 20, y);
+        y += lines1.length * 14 + 6;
+
+        pdf.setFont("Helvetica", "bold");
+        pdf.text("2nd Half Notes:", margin + 20, y);
+        y += 14;
+        pdf.setFont("Helvetica", "normal");
+        let lines2 = pdf.splitTextToSize(c.notes2 || "", 480);
+        pdf.text(lines2, margin + 20, y);
+        y += lines2.length * 14 + 14;
+
+        pdf.setDrawColor(230);
+        pdf.line(margin, y, 555, y);
+        y += 12;
+    });
+
+    ensureSpace();
 
     // Targets
-    y += 10;
-    pdf.setFontSize(14);
-    pdf.text("Targets", 40, y);
-    y += 20;
+    pdf.setFont("Helvetica", "bold");
+    pdf.text("Targets", margin, y);
+    y += 18;
+    line();
 
-    pdf.setFontSize(12);
-    addField("Target Start", data.targetStart);
-    addField("Target Second Half", data.targetSecond);
-    addField("Improve Next Time", data.improveNext);
+    paragraph("Target at Start:", data.targetStart);
+    paragraph("Target for Second Half:", data.targetSecond);
+    paragraph("Areas to Improve Next Time:", data.improveNext);
 
-    // Final section
-    y += 10;
-    pdf.setFontSize(14);
-    pdf.text("Finalisation", 40, y);
-    y += 20;
+    ensureSpace();
 
-    pdf.setFontSize(12);
-    addField("Signed", data.signed);
-    addField("Date", data.date);
+    // Finalisation
+    pdf.setFont("Helvetica", "bold");
+    pdf.text("Finalisation", margin, y);
+    y += 18;
+    line();
+
+    field("Signed:", data.signed);
+    field("Date:", data.date);
 
     pdf.save("referee_feedback.pdf");
 }
@@ -231,4 +310,3 @@ function resetForm() {
     localStorage.removeItem("referee_feedback_autosave");
     location.reload();
 }
-``
