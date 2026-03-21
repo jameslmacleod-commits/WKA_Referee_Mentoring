@@ -22,19 +22,19 @@ categories.forEach(cat => {
             <div class='checkbox-row'>
                 <div>
                     <strong>1st Half</strong><br>
-                    <input type='checkbox' id='${cat}-1st' class='autosave'>
+                    <input type='checkbox' id='${cat}-1st'>
                 </div>
                 <div>
                     <strong>2nd Half</strong><br>
-                    <input type='checkbox' id='${cat}-2nd' class='autosave'>
+                    <input type='checkbox' id='${cat}-2nd'>
                 </div>
             </div>
 
             <label>Notes – 1st Half</label>
-            <textarea id='${cat}-notes1' class='autosave'></textarea>
+            <textarea id='${cat}-notes1'></textarea>
 
             <label>Notes – 2nd Half</label>
-            <textarea id='${cat}-notes2' class='autosave'></textarea>
+            <textarea id='${cat}-notes2'></textarea>
         </div>
     `;
 });
@@ -85,44 +85,6 @@ function collectFormData() {
 }
 
 // =========================================
-// AUTO-SAVE
-// =========================================
-function autoSave() {
-    localStorage.setItem("referee_feedback_autosave", JSON.stringify(collectFormData()));
-}
-
-document.addEventListener("input", e => {
-    if (e.target.classList.contains("autosave") ||
-        ["INPUT", "TEXTAREA", "SELECT"].includes(e.target.tagName)) {
-        autoSave();
-    }
-});
-
-// Load saved data on page load
-function loadSavedData() {
-    const saved = localStorage.getItem("referee_feedback_autosave");
-    if (!saved) return;
-
-    const data = JSON.parse(saved);
-
-    Object.keys(data).forEach(key => {
-        if (key === "categories") return;
-        if (el(key)) el(key).value = data[key];
-    });
-
-    categories.forEach(cat => {
-        if (data.categories && data.categories[cat]) {
-            el(`${cat}-1st`).checked = data.categories[cat].firstHalf;
-            el(`${cat}-2nd`).checked = data.categories[cat].secondHalf;
-            el(`${cat}-notes1`).value = data.categories[cat].notes1;
-            el(`${cat}-notes2`).value = data.categories[cat].notes2;
-        }
-    });
-}
-
-window.onload = loadSavedData;
-
-// =========================================
 // EXPORT JSON
 // =========================================
 function exportData() {
@@ -137,24 +99,21 @@ function exportData() {
 }
 
 // =========================================
-// PROFESSIONAL PDF EXPORT (OPTION A)
+// PROFESSIONAL PDF EXPORT
 // =========================================
 async function exportPDF() {
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF({ unit: "pt", format: "a4" });
 
-    // Page settings
     const margin = 40;
     let y = margin;
 
-    // Horizontal line helper
     function line() {
         pdf.setDrawColor(150);
         pdf.line(margin, y, 555, y);
         y += 15;
     }
 
-    // Two-column fields
     function twoCol(label1, value1, label2, value2) {
         pdf.setFont("Helvetica", "bold");
         pdf.text(label1, margin, y);
@@ -169,7 +128,6 @@ async function exportPDF() {
         y += 22;
     }
 
-    // Single field
     function field(label, value) {
         pdf.setFont("Helvetica", "bold");
         pdf.text(label, margin, y);
@@ -178,7 +136,6 @@ async function exportPDF() {
         y += 22;
     }
 
-    // Paragraph block
     function paragraph(label, text) {
         pdf.setFont("Helvetica", "bold");
         pdf.text(label, margin, y);
@@ -190,7 +147,6 @@ async function exportPDF() {
         y += lines.length * 14 + 12;
     }
 
-    // Add new page if needed
     function ensureSpace(amount = 60) {
         if (y + amount > 780) {
             pdf.addPage();
@@ -200,7 +156,6 @@ async function exportPDF() {
 
     const data = collectFormData();
 
-    // Header
     pdf.setFont("Helvetica", "bold");
     pdf.setFontSize(20);
     pdf.text("WKA Referee Mentoring Feedback", margin, y);
@@ -208,7 +163,6 @@ async function exportPDF() {
 
     pdf.setFontSize(12);
 
-    // Referee info
     pdf.setFont("Helvetica", "bold");
     pdf.text("Referee Information", margin, y);
     y += 18;
@@ -221,7 +175,6 @@ async function exportPDF() {
 
     ensureSpace();
 
-    // Evaluation categories
     pdf.setFont("Helvetica", "bold");
     pdf.text("Evaluation Categories", margin, y);
     y += 18;
@@ -277,7 +230,6 @@ async function exportPDF() {
 
     ensureSpace();
 
-    // Targets
     pdf.setFont("Helvetica", "bold");
     pdf.text("Targets", margin, y);
     y += 18;
@@ -289,7 +241,6 @@ async function exportPDF() {
 
     ensureSpace();
 
-    // Finalisation
     pdf.setFont("Helvetica", "bold");
     pdf.text("Finalisation", margin, y);
     y += 18;
@@ -305,8 +256,6 @@ async function exportPDF() {
 // RESET FORM
 // =========================================
 function resetForm() {
-    if (!confirm("Start a new blank form? This will erase your saved data.")) return;
-
-    localStorage.removeItem("referee_feedback_autosave");
+    if (!confirm("Start a new blank form?")) return;
     location.reload();
 }
